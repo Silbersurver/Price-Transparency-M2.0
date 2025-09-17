@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ausklappbare Tabelle – Spaltenweise Details</title>
+  <style>
+    :root{
+      /* Farben & Layout */
+      --border:#d0d7de; --bg-parent:#f6f8fa; --text:#24292f;
+      --pink:#ffc0cb; --blue:#8ec5ff; --lblue:#d6ebff; --green:#bff5c8; --green2:#a8e9b3;
+
+      /* Extra-smooth Easing (springy) */
+      --ease-soft:cubic-bezier(.22,.61,.36,1);
+      --ease-verysoft:cubic-bezier(.2,.8,.2,1);
+      --ease-spring:cubic-bezier(.16,1,.3,1);
+
+      /* Weiche Zeiten */
+      --t-opacity:900ms;
+      --t-geom:   1800ms;
+      --t-border: 1200ms;
+
+      /* Stagger */
+      --stagger-step:120ms;
+
+      /* Card-Open/Close */
+      --card-open:  680ms cubic-bezier(.16,1,.3,1);
+      --card-close: 560ms cubic-bezier(.2,.8,.2,1);
+
+      /* Breite */
+      --container-max: 1200px;
+      --page-pad: clamp(16px, 3vw, 28px);
+    }
+
+    /* ===== Seite / Container ===== */
+    html{
+      min-height:100%;
+      background-image:
+        linear-gradient(to right,
+          rgba(255,255,255,0.00) 0%,
+          rgba(255,255,255,0.06) 40%,
+          rgba(255,255,255,0.12) 100%),
+        url("banner%20sin%20nada%20png.png");
+      background-position:center, center;
+      background-size:cover, cover;
+      background-repeat:no-repeat, no-repeat;
+      background-attachment:fixed, fixed;
+    }
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      color:var(--text);
+      margin:0;
+      background:transparent;
+    }
+    .container{
+      max-width: var(--container-max);
+      margin: 0 auto;
+      padding: var(--page-pad);
+    }
+
+    /* ===== Top-Bar: Überschrift links, Wappen rechts ===== */
+    .top-bar{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; margin-bottom:10px;
+    }
+    h1#main-title{
+      font-size: clamp(1.25rem, 2.1vw, 1.6rem);
+      margin:0;
+      line-height:1.25;
+    }
+    .brand-right{
+      display:flex; align-items:flex-start; gap:12px;
+      padding-right: clamp(8px, 1.6vw, 18px); /* Abstand zum Seitenrand */
+    }
+    .crest{
+      width: clamp(110px, 12vw, 160px);
+      height:auto;
+      filter: drop-shadow(0 4px 14px rgba(0,0,0,.12));
+      transform: translateZ(0);
+    }
+
+    .sub{ font-size:.95rem; color:#374151; margin:6px 0 10px; }
+    .hint{ font-size:.9rem; color:#57606a; margin:0 0 16px; }
+    .is-hidden{ display:none; }
+
+    /* ===== Haupt-Grid unterhalb der Top-Bar ===== */
+    .page-grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:16px;
+      align-items:start;
+    }
+
+    /* ===== Header-Cards ===== */
+    .header-area{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+    @media (min-width:960px){
+      .header-area{ grid-template-columns: 1.1fr .9fr; }
+    }
+
+    .header-card{
+      position:relative;
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:rgba(255,255,255,.94);
+      box-shadow:0 6px 24px rgba(0,0,0,.06);
+      -webkit-backdrop-filter:saturate(120%) blur(3px);
+      backdrop-filter:saturate(120%) blur(3px);
+      padding:14px 16px;
+      overflow:visible; /* wichtig: Tooltips dürfen raus! */
+      transition: box-shadow .5s var(--ease-soft), transform .5s var(--ease-spring), filter .5s var(--ease-soft);
+      will-change: box-shadow, transform, filter;
+    }
+    .header-card:hover{ box-shadow:0 10px 28px rgba(0,0,0,.08); transform: translateZ(0); }
+
+    /* Card-Head (Titel für Klarheit) */
+    .card-head{
+      display:flex; align-items:center; justify-content:space-between;
+      margin: -6px 0 10px;
+    }
+    .card-title{
+      margin:0;
+      font-size: .95rem;
+      font-weight:700;
+      letter-spacing:.2px;
+      color:#1f2937;
+    }
+
+    /* Werkzeuge / Sprache / CTA (Card 1) */
+    .toolbar{ display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+    .toolbar button{
+      padding:10px 14px; border:1px solid #c5d1e3; background:#e8f0f9;
+      border-radius:10px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.04);
+      transition: background .25s var(--ease-soft), transform .18s var(--ease-soft), box-shadow .25s var(--ease-soft);
+      will-change: background, transform, box-shadow;
+    }
+    .toolbar button:hover{ background:#dbe8f7; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+    .toolbar button:active{ transform: translateY(1px); }
+    .toolbar .cta-text{ font-size:.92rem; color:#334155; max-width:520px; }
+
+    .controls { display:flex; gap:.5rem; align-items:center; }
+    .controls label{ font-size:.9rem; color:#334155; }
+    .controls select{
+      padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:#fff;
+    }
+
+    /* Key-Facts (Card 2) */
+    .key-facts{
+      display:flex; flex-wrap:wrap; gap:8px 10px; margin:2px 0 2px;
+    }
+    .chip{
+      position:relative;
+      display:inline-flex; align-items:center; gap:8px;
+      background:#fff; color:#111827;
+      border:1px solid var(--border); border-radius:999px;
+      padding:6px 10px; font-size:.9rem; line-height:1.2;
+      box-shadow:0 2px 6px rgba(0,0,0,.04);
+    }
+    .chip .label{ font-weight:600; }
+    .chip .value{ opacity:.9; }
+    .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; }
+    .dot-lblue{ background:var(--lblue); }
+    .dot-gray{ background:#bbb; }
+
+    /* Deutlicher Hinweis-Chip */
+    .chip-accent{
+      background:#fff7cc;
+      border-color:#f0c420;
+      box-shadow:0 4px 14px rgba(240,196,32,.25);
+      font-size:1rem;
+      padding:8px 12px;
+      font-weight:700;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .chip-accent .value{ opacity:1; }
+    .dot-warn{ background:#f0c420; }
+    @keyframes pulse{
+      0%,100%{ box-shadow:0 4px 14px rgba(240,196,32,.25); transform:translateZ(0); }
+      50%{ box-shadow:0 6px 22px rgba(240,196,32,.38); transform:translateY(-1px); }
+    }
+
+    /* Chip-Tooltips (Bubbles) */
+    .chip-tip{
+      position:absolute; left:50%; transform:translateX(-50%); bottom:100%; margin-bottom:8px;
+      background:#111827; color:#fff; padding:8px 10px; border-radius:8px; white-space:nowrap;
+      font-size:.85rem; opacity:0; pointer-events:none; transition:opacity .18s ease;
+      box-shadow:0 8px 22px rgba(0,0,0,.18); z-index:5;
+    }
+    .chip:hover .chip-tip, .chip:focus-within .chip-tip{ opacity:1; }
+
+    @media (max-width:720px){
+      .chip{ font-size:.85rem; padding:5px 9px; }
+      .chip-accent{ font-size:.95rem; }
+    }
+
+    /* ===== Tabelle in Card mit extra-smoother Card-Motion ===== */
+    .table-card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 10px 30px rgba(0,0,0,.06);
+      overflow:visible; /* wichtig: Header-Tooltips nicht clippen */
+      transition: box-shadow .6s var(--ease-soft), transform .6s var(--ease-spring), filter .6s var(--ease-soft);
+      will-change: box-shadow, transform, filter;
+      position:relative;
+      z-index:1;
+    }
+    .table-card.opening{ animation: cardOpen var(--card-open); }
+    .table-card.closing{ animation: cardClose var(--card-close); }
+    @keyframes cardOpen {
+      0%   { opacity:.94; transform: translateY(-4px) scale(.997); filter:saturate(.94) blur(.35px); }
+      60%  { opacity:1;    transform: translateY(0)    scale(1.001); filter:none; }
+      100% { opacity:1;    transform: none; }
+    }
+    @keyframes cardClose {
+      0%   { opacity:1; transform: none; }
+      100% { opacity:.985; transform: translateY(-2px) scale(.999); filter:saturate(.96); }
+    }
+
+    /* ===== Tabelle ===== */
+    .table-wrap{ position:relative; overflow:visible; } /* wichtig für Tooltips */
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; background:#fff; border-radius:14px; }
+    thead th{
+      text-align:center; background:var(--bg-parent);
+      border:1px solid var(--border); padding:10px; position:relative;
+    }
+    tbody td, tbody th{ border:1px solid var(--border); padding:10px; vertical-align:middle; text-align:center; }
+
+    /* Spalten-Transitions (noch sanfter + springy) */
+    thead th, tbody td{
+      transition:
+        opacity var(--t-opacity) var(--ease-verysoft),
+        width   var(--t-geom)   var(--ease-spring),
+        padding-left  var(--t-geom) var(--ease-spring),
+        padding-right var(--t-geom) var(--ease-spring),
+        border-width  var(--t-border) var(--ease-soft),
+        border-color  var(--t-border) var(--ease-soft),
+        background-color .62s var(--ease-soft);
+      transition-delay: var(--stagger,0ms);
+      will-change:opacity,width,padding-left,padding-right,border-width,border-color,background-color;
+    }
+
+    /* Collapsed: Spalten 1–5 weg (0=Alumnes bleibt) */
+    #cost-table.collapsed .col-1,
+    #cost-table.collapsed .col-2,
+    #cost-table.collapsed .col-3,
+    #cost-table.collapsed .col-4,
+    #cost-table.collapsed .col-5{
+      opacity:0;
+      width:0 !important;
+      padding-left:0 !important; padding-right:0 !important;
+      border-width:0 !important; border-color:transparent !important;
+      overflow:hidden;
+    }
+
+    /* Farben: ausgeklappt */
+    #cost-table:not(.collapsed) .col-2{ background:var(--pink) !important; }   /* Cost de material */
+    #cost-table:not(.collapsed) .col-3{ background:var(--lblue) !important; }  /* Temps/mes (h) */
+    #cost-table:not(.collapsed) .col-4{ background:var(--lblue) !important; }  /* Temps prep. (min.) */
+    #cost-table:not(.collapsed) .col-5{ background:var(--blue) !important; }   /* Preu prep./dia */
+    #cost-table:not(.collapsed) .col-6{ background:var(--green) !important; border:2px solid #000 !important; } /* Preu/Classe */
+    #cost-table:not(.collapsed) .col-7{ background:var(--green2) !important; } /* Al mes */
+
+    /* Collapsed: Fokusspalten */
+    #cost-table.collapsed .col-6{ background:var(--green) !important; border:2px solid #000 !important; }
+    #cost-table.collapsed .col-7{ background:var(--green2) !important; border:2px solid #000 !important; }
+
+    /* Zeilenhover + Spalte 7 fett (nur ausgeklappt) */
+    #cost-table:not(.collapsed) tbody tr > th,
+    #cost-table:not(.collapsed) tbody tr > td{ transition:box-shadow 360ms var(--ease-verysoft), font-weight 240ms var(--ease-verysoft); }
+    #cost-table:not(.collapsed) tbody tr:hover > th,
+    #cost-table:not(.collapsed) tbody tr:hover > td{ box-shadow:inset 0 0 0 100vmax rgba(255,235,150,.16); }
+    #cost-table:not(.collapsed) tbody tr:hover > .col-6,
+    #cost-table:not(.collapsed) tbody tr:focus-within > .col-6{ font-weight:700; }
+
+    /* Tooltips (Header-Bubbles) */
+    table, thead, tr, th{ overflow:visible; }
+    .tip-bubble{
+      position:absolute; left:50%; transform:translateX(-50%); bottom:100%; margin-bottom:8px;
+      background:#111827; color:#fff; padding:8px 10px; border-radius:8px; white-space:nowrap;
+      font-size:.9rem; opacity:0; pointer-events:none; transition:opacity .18s ease; z-index:5;
+      box-shadow:0 8px 22px rgba(0,0,0,.18);
+    }
+    th:hover .tip-bubble, th:focus-within .tip-bubble{ opacity:1; }
+    .dot-tip{ display:inline-block; width:8px; height:8px; border-radius:999px; margin-right:6px; vertical-align:middle; }
+    .pink{ background:var(--pink); } .blue{ background:var(--blue); } .lblue{ background:var(--lblue); } .green{ background:var(--green); }
+
+    td.invert-cell{ background:#000; color:#fff; }
+    .italic{ font-style:italic; }
+
+    @media (prefers-reduced-motion: reduce){
+      .table-card{ animation:none !important; }
+      thead th, tbody td{ transition:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Top-Bar mit Wappen auf Überschriften-Ebene -->
+    <div class="top-bar">
+      <h1 id="main-title">verkürzte Kostenansicht</h1>
+      <div class="brand-right" aria-label="Schullogo">
+        <img class="crest" src="ESCUDO%202%20BLANCO.png" alt="Schul-Wappen" />
+      </div>
+    </div>
+
+    <p class="sub is-hidden" id="sub-title">aixi veus on van els teus diners al detall</p>
+    <p class="hint" id="hint">
+      Im eingeklappten Zustand bleiben nur die Spalten <strong>Alumnes</strong>,
+      <strong>Preu/Classe per alumnes</strong> und <strong>Al mes – 4x setmanas</strong> sichtbar.
+    </p>
+
+    <div class="page-grid">
+      <!-- Header-Cards -->
+      <div class="header-area">
+        <!-- Card 1: Werkzeuge / Sprache / CTA -->
+        <section class="header-card" aria-label="Werkzeuge & Sprache">
+          <div class="card-head">
+            <h2 class="card-title">Einstellungen &amp; Sprache</h2>
+          </div>
+          <div class="toolbar" role="region" aria-label="Werkzeuge">
+            <button type="button" id="toggle-columns-btn">Alle Spalten anzeigen</button>
+            <span class="cta-text" id="cta-line">
+              Vols entendre com fixem els preus? → Clica aquí i comprova la nostra transparència i sinceritat en tots els costos.
+            </span>
+            <div class="controls">
+              <label for="lang-select" id="lang-label">Sprache:</label>
+              <select id="lang-select">
+                <option value="ca">Català</option>
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Card 2: Key-Facts (mit Überschrift & prominentem Hinweis) -->
+        <section class="header-card" aria-label="Wichtige Parameter">
+          <div class="card-head">
+            <h2 class="card-title">Key Facts</h2>
+          </div>
+
+          <!-- Deutlicher Hinweis (bezahlt nur, wenn man teilnimmt) -->
+          <div class="key-facts" id="facts">
+            <span class="chip chip-accent" role="note" aria-live="polite">
+              <span class="dot dot-warn" aria-hidden="true"></span>
+              <span class="value" id="chip-payonly" data-i18n="chip_payonly">Es paga només per les classes a les quals s’assisteix</span>
+              <span class="chip-tip" id="chip-payonly-tip">Pagament just: sense assistència, sense cost.</span>
+            </span>
+
+            <!-- Gewöhnliche Facts -->
+            <span class="chip">
+              <span class="dot dot-gray" aria-hidden="true"></span>
+              <span class="label" data-i18n="chip_alumnes_label">Alumnes:</span>
+              <span class="value" id="chip-alumnes-val">1–8</span>
+              <span class="chip-tip">Zwischen 1 und 8 Schüler pro Klasse</span>
+            </span>
+            <span class="chip">
+              <span class="dot dot-lblue" aria-hidden="true"></span>
+              <span class="label" data-i18n="chip_class_label">Temps classe:</span>
+              <span class="value" id="chip-class-val">90&nbsp;min</span>
+              <span class="chip-tip">Typische Dauer einer Unterrichtseinheit</span>
+            </span>
+            <span class="chip">
+              <span class="dot dot-gray" aria-hidden="true"></span>
+              <span class="label" data-i18n="chip_rent_label">Lloguer:</span>
+              <span class="value" id="chip-rent-val">50,00&nbsp;€</span>
+              <span class="chip-tip">Raummiete je Zeitraum</span>
+            </span>
+            <span class="chip">
+              <span class="dot dot-gray" aria-hidden="true"></span>
+              <span class="label" data-i18n="chip_time_label">Horari:</span>
+              <span class="value" id="chip-time-val">~16h45–18h15</span>
+              <span class="chip-tip">Reguläre Unterrichtszeiten</span>
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== Tabelle in Card ===== -->
+      <section class="table-card" id="table-card">
+        <div class="table-wrap">
+          <table id="cost-table" class="collapsed" aria-live="polite">
+            <thead>
+              <tr>
+                <th tabindex="0" class="col-0" id="th-alumnes">
+                  Alumnes
+                  <span class="tip-bubble"><span class="dot-tip" style="background:#999"></span><span data-i18n="tip_alumnes">Klassengröße: Zwischen 1 und maximal 8 Kindern</span></span>
+                </th>
+
+                <th id="toggle-th" tabindex="0" class="col-1" id="th-preu-base">
+                  <span class="col-label" data-i18n="th_base">Preu base/classe per alumne</span>
+                  <span class="tip-bubble"><span class="dot-tip" style="background:#000"></span><span data-i18n="tip_base">Basispreis orientiert sich am Einzelunterricht „Only for you“</span></span>
+                </th>
+
+                <th tabindex="0" class="col-2" id="th-material">
+                  <span data-i18n="th_material">Cost de material</span>
+                  <span class="tip-bubble"><span class="dot-tip pink"></span><span data-i18n="tip_material">Jeder Schüler bezahlt pro Unterrichtseinheit: 2,50&nbsp;€ Material/Entstandhaltungskosten</span></span>
+                </th>
+
+                <th tabindex="0" class="col-3" id="th-mes">
+                  <span data-i18n="th_mes">Temps preparació classe/mes (hores)</span>
+                  <span class="tip-bubble"><span class="dot-tip lblue"></span><span data-i18n="tip_mes">1h Vor-/Nachbereitung pro Monat für den ersten Schüler, plus 30 Min. für jeden weiteren.</span></span>
+                </th>
+
+                <th tabindex="0" class="col-4" id="th-prep-min">
+                  <span data-i18n="th_prepmin">Temps de preparació de classe/dia (min.)</span>
+                  <span class="tip-bubble"><span class="dot-tip lblue"></span><span data-i18n="tip_prepmin">Je größer die Gruppe, desto mehr Vorbereitungszeit</span></span>
+                </th>
+
+                <th tabindex="0" class="col-5" id="th-prep-dia">
+                  <span data-i18n="th_prepdia">Preu de preparació de classe/dia</span>
+                  <span class="tip-bubble"><span class="dot-tip blue"></span><span data-i18n="tip_prepdia">Vorbereitungszeit: 10&nbsp;€/h</span></span>
+                </th>
+
+                <th tabindex="0" class="col-6" id="th-preu-classe">
+                  <span data-i18n="th_preuclasse">Preu/Classe per alumnes</span>
+                  <span class="tip-bubble"><span class="dot-tip green"></span><span data-i18n="tip_preuclasse">Preis/Schüler je Klasse</span></span>
+                </th>
+
+                <th tabindex="0" class="col-7" id="th-mes4">
+                  <span data-i18n="th_mes4">Al mes - 4x setmanas</span>
+                  <span class="tip-bubble"><span class="dot-tip" style="background:#bbb"></span><span data-i18n="tip_mes4">Monatspreis bei 4 Wochen</span></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td class="invert-cell">20.00 €</td>
+                <td>2.50 €</td>
+                <td>1 h</td>
+                <td>00:15:00</td>
+                <td>2.50 €</td>
+                <td>25.00 €</td>
+                <td>100.00 €</td>
+              </tr>
+              <tr><td>2</td><td>19.00 €</td><td>5.00 €</td><td>1.5 h</td><td>00:22:30</td><td>3.75 €</td><td>23.38 €</td><td>93.50 €</td></tr>
+              <tr><td>3</td><td>18.00 €</td><td>7.50 €</td><td>2 h</td><td>00:30:00</td><td>5.00 €</td><td>22.17 €</td><td>88.67 €</td></tr>
+              <tr><td>4</td><td>17.00 €</td><td>10.00 €</td><td>2.5 h</td><td>00:37:30</td><td>6.25 €</td><td>21.06 €</td><td>84.25 €</td></tr>
+              <tr><td>5</td><td>16.00 €</td><td>12.50 €</td><td>3 h</td><td>00:45:00</td><td>7.50 €</td><td>20.00 €</td><td>80.00 €</td></tr>
+              <tr><td>6</td><td>15.00 €</td><td>15.00 €</td><td>3.5 h</td><td>00:52:30</td><td>8.75 €</td><td>18.96 €</td><td>75.83 €</td></tr>
+              <tr><td>7</td><td class="italic">13.00 €</td><td>17.50 €</td><td>4 h</td><td>01:00:00</td><td>10.00 €</td><td>16.93 €</td><td>67.71 €</td></tr>
+              <tr><td>8</td><td class="italic">12.00 €</td><td>20.00 €</td><td>4.5 h</td><td>01:07:30</td><td>11.25 €</td><td>15.91 €</td><td>63.63 €</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const table     = document.getElementById('cost-table');
+      const tableCard = document.getElementById('table-card');
+      const btn       = document.getElementById('toggle-columns-btn');
+      const h1        = document.getElementById('main-title');
+      const sub       = document.getElementById('sub-title');
+      const hint      = document.getElementById('hint');
+
+      const langSel   = document.getElementById('lang-select');
+      const langLabel = document.getElementById('lang-label');
+      const ctaLine   = document.getElementById('cta-line');
+
+      /* Spalten indizieren */
+      function tagColumns(){
+        const headerRow = table.tHead.rows[0];
+        for(let i=0;i<headerRow.children.length;i++){ headerRow.children[i].classList.add('col-'+i); }
+        table.querySelectorAll('tbody tr').forEach(tr=>{
+          for(let i=0;i<tr.children.length;i++){ tr.children[i].classList.add('col-'+i); }
+        });
+      }
+
+      /* Stagger-Choreografie */
+      const HIDE_COLS = [1,2,3,4,5];
+      function setStaggerDelays(expanding){
+        const headerRow = table.tHead.rows[0];
+        const rows = Array.from(table.tBodies[0].rows);
+        HIDE_COLS.forEach((colIndex, idx) => {
+          const order = expanding ? (HIDE_COLS.length - 1 - idx) : idx;
+          const delay = `calc(${order} * var(--stagger-step))`;
+          headerRow.children[colIndex].style.setProperty('--stagger', delay);
+          rows.forEach(tr => tr.children[colIndex].style.setProperty('--stagger', delay));
+        });
+        [0,6,7].forEach(i=>{
+          headerRow.children[i].style.removeProperty('--stagger');
+          rows.forEach(tr => tr.children[i].style.removeProperty('--stagger'));
+        });
+      }
+
+      /* Smooth Expand/Collapse mit Card-Motion */
+      function setColumnsVisibility(expanded){
+        setStaggerDelays(expanded);
+
+        tableCard.classList.remove('opening','closing');
+        if(expanded){
+          tableCard.classList.add('opening');
+          table.classList.remove('collapsed');
+          h1.textContent = i18n[langSel.value].title_full;
+          sub.classList.remove('is-hidden');
+          btn.textContent = i18n[langSel.value].btn_collapse;
+        } else {
+          tableCard.classList.add('closing');
+          table.classList.add('collapsed');
+          h1.textContent = i18n[langSel.value].title_short;
+          sub.classList.add('is-hidden');
+          btn.textContent = i18n[langSel.value].btn_expand;
+        }
+        setTimeout(()=>tableCard.classList.remove('opening','closing'), 820);
+      }
+
+      /* i18n */
+      const i18n = {
+        ca:{
+          title_short:'Vista de costos resumida',
+          title_full:'Transparència total de costos',
+          hint:'En estat plegat només es veuen les columnes <strong>Alumnes</strong>, <strong>Preu/Classe per alumnes</strong> i <strong>Al mes – 4x setmanes</strong>.',
+          btn_expand:'Mostrar totes les columnes',
+          btn_collapse:'Tornar a la vista resumida',
+          lang_label:'Llengua:',
+          cta:'Vols entendre com fixem els preus? → Clica aquí i comprova la nostra transparència i sinceritat en tots els costos.',
+          ths:['Alumnes','Preu base/classe per alumne','Cost de material','Temps prep. al mes (hores)','Temps de preparació al dia (min.)','Preu de preparació al dia','Preu/Classe per alumnes','Al mes - 4x setmanes'],
+          tips:{
+            alumnes:'Mida del grup: entre 1 i 8 alumnes com a màxim',
+            base:'Preu base orientat a classe particular «Only for you»',
+            material:'Per alumne i sessió: 2,50 € en material/manteniment',
+            mes:'1 h de prep. al mes pel primer alumne, +30 min per cadascun extra',
+            prepmin:'Com més gran el grup, més temps de preparació',
+            prepdia:'Tarifa de preparació: 10 €/h',
+            preuclasse:'Preu per alumne i classe',
+            mes4:'Preu mensual (4 setmanes)'
+          },
+          chips:{ alumnes:'Alumnes:', classe:'Durada classe:', rent:'Lloguer:', time:'Horari:' },
+          chipvals:{ classe:'90 min', rent:'50,00 €', time:'~16:45–18:15' },
+          payonly:'Es paga només per les classes a les quals s’assisteix',
+          payonly_tip:'Pagament just: sense assistència, sense cost.'
+        },
+        es:{
+          title_short:'Vista de costos resumida',
+          title_full:'Transparencia total de costos',
+          hint:'En estado contraído solo se ven las columnas <strong>Alumnes</strong>, <strong>Preu/Classe per alumnes</strong> y <strong>Al mes – 4x semanas</strong>.',
+          btn_expand:'Mostrar todas las columnas',
+          btn_collapse:'Volver a la vista resumida',
+          lang_label:'Idioma:',
+          cta:'¿Quieres entender cómo fijamos los precios? → Haz clic y comprueba nuestra transparencia y sinceridad en todos los costos.',
+          ths:['Alumnos','Precio base/clase por alumno','Costo de material','Tiempo prep. al mes (h)','Tiempo de preparación al día (min.)','Precio de preparación al día','Precio/Clase por alumno','Al mes - 4x semanas'],
+          tips:{
+            alumnes:'Tamaño del grupo: entre 1 y 8 como máximo',
+            base:'Precio base orientado a clase particular «Only for you»',
+            material:'Por alumno y sesión: 2,50 € de material/mantenimiento',
+            mes:'1 h/mes para el primer alumno, +30 min por cada extra',
+            prepmin:'Cuanto mayor el grupo, mayor preparación',
+            prepdia:'Tarifa de preparación: 10 €/h',
+            preuclasse:'Precio por alumno y clase',
+            mes4:'Precio mensual (4 semanas)'
+          },
+          chips:{ alumnes:'Alumnos:', classe:'Duración clase:', rent:'Alquiler:', time:'Horario:' },
+          chipvals:{ classe:'90 min', rent:'50,00 €', time:'~16:45–18:15' },
+          payonly:'Solo pagas por las clases a las que asistes',
+          payonly_tip:'Pago justo: si no asistes, no pagas.'
+        },
+        en:{
+          title_short:'Compact cost view',
+          title_full:'Full cost transparency',
+          hint:'When collapsed, only <strong>Students</strong>, <strong>Price/Class per student</strong> and <strong>Per month – 4x weeks</strong> stay visible.',
+          btn_expand:'Show all columns',
+          btn_collapse:'Back to compact view',
+          lang_label:'Language:',
+          cta:'Want to see how we set prices? → Click to check our transparency and honesty in all costs.',
+          ths:['Students','Base price/class per student','Material cost','Prep time per month (h)','Prep time per day (min.)','Preparation price per day','Price/Class per student','Per month - 4x weeks'],
+          tips:{
+            alumnes:'Class size: between 1 and 8 students',
+            base:'Base price references 1:1 lessons “Only for you”',
+            material:'Per student & class: €2.50 for material/maintenance',
+            mes:'1h/month for first student, +30m for each additional',
+            prepmin:'Larger groups need more preparation time',
+            prepdia:'Preparation rate: €10/hour',
+            preuclasse:'Price per student per class',
+            mes4:'Monthly price (4 weeks)'
+          },
+          chips:{ alumnes:'Students:', classe:'Class length:', rent:'Rent:', time:'Schedule:' },
+          chipvals:{ classe:'90 min', rent:'€50.00', time:'~16:45–18:15' },
+          payonly:'You only pay for the classes you attend',
+          payonly_tip:'Fair billing: no attendance, no charge.'
+        }
+      };
+
+      function applyLanguage(lang){
+        const expanded = !table.classList.contains('collapsed');
+        h1.textContent = expanded ? i18n[lang].title_full : i18n[lang].title_short;
+        hint.innerHTML = i18n[lang].hint;
+        ctaLine.textContent = i18n[lang].cta;
+        langLabel.textContent = i18n[lang].lang_label;
+        document.title = i18n[lang].title_full;
+        btn.textContent = expanded ? i18n[lang].btn_collapse : i18n[lang].btn_expand;
+
+        const thIds = ['th-alumnes','th-preu-base','th-material','th-mes','th-prep-min','th-prep-dia','th-preu-classe','th-mes4'];
+        thIds.forEach((id, idx)=>{
+          const th = document.getElementById(id);
+          if(!th) return;
+          const labelSpan = th.querySelector(':scope > span[data-i18n], :scope > span:not(.tip-bubble)');
+          if(labelSpan) labelSpan.textContent = i18n[lang].ths[idx];
+        });
+
+        const tipMap = {
+          'tip_alumnes':'alumnes',
+          'tip_base':'base',
+          'tip_material':'material',
+          'tip_mes':'mes',
+          'tip_prepmin':'prepmin',
+          'tip_prepdia':'prepdia',
+          'tip_preuclasse':'preuclasse',
+          'tip_mes4':'mes4'
+        };
+        Object.entries(tipMap).forEach(([dataKey, k])=>{
+          const el = document.querySelector(`[data-i18n="${dataKey}"]`);
+          if(el) el.textContent = i18n[lang].tips[k];
+        });
+
+        const chipLabelMap = {
+          'chip_alumnes_label':'alumnes',
+          'chip_class_label':'classe',
+          'chip_rent_label':'rent',
+          'chip_time_label':'time'
+        };
+        Object.entries(chipLabelMap).forEach(([dataKey, k])=>{
+          const el = document.querySelector(`[data-i18n="${dataKey}"]`);
+          if(el) el.textContent = i18n[lang].chips[k];
+        });
+        document.getElementById('chip-class-val').innerHTML = i18n[lang].chipvals.classe;
+        document.getElementById('chip-rent-val').innerHTML  = i18n[lang].chipvals.rent;
+        document.getElementById('chip-time-val').innerHTML  = i18n[lang].chipvals.time;
+
+        // Pay-only Hinweis lokalisieren
+        const payOnly = document.getElementById('chip-payonly');
+        const payOnlyTip = document.getElementById('chip-payonly-tip');
+        if(payOnly)    payOnly.textContent    = i18n[lang].payonly;
+        if(payOnlyTip) payOnlyTip.textContent = i18n[lang].payonly_tip;
+      }
+
+      /* ===== Init ===== */
+      function setInitialDelays(){
+        const card = document.getElementById('table-card');
+        card.classList.add('opening');
+        setTimeout(()=>card.classList.remove('opening'), 820);
+      }
+
+      function setColumnsVisibility(expanded){
+        setStaggerDelays(expanded);
+
+        tableCard.classList.remove('opening','closing');
+        if(expanded){
+          tableCard.classList.add('opening');
+          table.classList.remove('collapsed');
+          h1.textContent = i18n[langSel.value].title_full;
+          sub.classList.remove('is-hidden');
+          btn.textContent = i18n[langSel.value].btn_collapse;
+        } else {
+          tableCard.classList.add('closing');
+          table.classList.add('collapsed');
+          h1.textContent = i18n[langSel.value].title_short;
+          sub.classList.add('is-hidden');
+          btn.textContent = i18n[langSel.value].btn_expand;
+        }
+        setTimeout(()=>tableCard.classList.remove('opening','closing'), 820);
+      }
+
+      function setStaggerDelays(expanding){
+        const headerRow = table.tHead.rows[0];
+        const rows = Array.from(table.tBodies[0].rows);
+        const HIDE_COLS = [1,2,3,4,5];
+        HIDE_COLS.forEach((colIndex, idx) => {
+          const order = expanding ? (HIDE_COLS.length - 1 - idx) : idx;
+          const delay = `calc(${order} * var(--stagger-step))`;
+          headerRow.children[colIndex].style.setProperty('--stagger', delay);
+          rows.forEach(tr => tr.children[colIndex].style.setProperty('--stagger', delay));
+        });
+        [0,6,7].forEach(i=>{
+          headerRow.children[i].style.removeProperty('--stagger');
+          rows.forEach(tr => tr.children[i].style.removeProperty('--stagger'));
+        });
+      }
+
+      tagColumns();
+      setColumnsVisibility(false); // Start: eingeklappt
+      applyLanguage(langSel.value);
+      setInitialDelays();
+
+      /* ===== Events ===== */
+      btn.addEventListener('click', ()=>{
+        const expanded = !table.classList.contains('collapsed');
+        setColumnsVisibility(!expanded);
+      });
+
+      langSel.addEventListener('change', ()=>{
+        applyLanguage(langSel.value);
+      });
+    })();
+  </script>
+</body>
+</html>
